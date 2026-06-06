@@ -1,162 +1,890 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XRP Exchange Monitor - Jon's Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        body { background: #0f172a; color: #e2e8f0; }
-        .card { background: #1e2937; }
-        .positive { color: #22c55e; }
-        .negative { color: #ef4444; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XRP DEPTH INTEL · webzy87</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #030912;
+    --bg2:     #060f1e;
+    --bg3:     #0a1628;
+    --panel:   rgba(6,15,30,0.97);
+    --border:  rgba(0,200,255,0.13);
+    --accent:  #00c8ff;
+    --accent2: #00ff9d;
+    --accent3: #ff6b35;
+    --warn:    #ffcc00;
+    --red:     #ff3366;
+    --green:   #00ff9d;
+    --dim:     rgba(0,200,255,0.4);
+    --text:    #c8e6ff;
+    --muted:   rgba(200,230,255,0.38);
+    --whale:   #ff6b35;
+    --shark:   #ffcc00;
+    --glow:       0 0 20px rgba(0,200,255,0.3);
+    --glow-green: 0 0 20px rgba(0,255,157,0.3);
+    --glow-red:   0 0 20px rgba(255,51,102,0.3);
+    --glow-whale: 0 0 30px rgba(255,107,53,0.5);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Share Tech Mono',monospace;
+    font-size:13px;
+    height:100%;
+    overflow:hidden;
+  }
+  /* scanlines */
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:1000;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+  }
+  /* grid bg */
+  body::after{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(0,200,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.025) 1px,transparent 1px);
+    background-size:40px 40px;
+  }
+  #app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:7px;gap:5px;overflow:hidden;}
+
+  /* ── HEADER ── */
+  #header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:7px 14px;border:1px solid var(--border);
+    background:linear-gradient(90deg,rgba(0,200,255,0.04),transparent,rgba(0,200,255,0.04));
+    position:relative;overflow:hidden;flex-shrink:0;
+  }
+  #header::after{
+    content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    animation:scanH 4s linear infinite;
+  }
+  @keyframes scanH{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+  .logo{font-family:'Orbitron',monospace;font-size:17px;font-weight:900;letter-spacing:4px;color:var(--accent);text-shadow:var(--glow);}
+  .logo span{color:var(--accent3);}
+  .sub-logo{font-size:9px;color:var(--muted);letter-spacing:2px;margin-top:2px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);display:inline-block;margin-right:5px;animation:pulse 1.5s ease-in-out infinite;}
+  .status-dot.warn{background:var(--warn);box-shadow:0 0 8px var(--warn);}
+  .status-dot.err{background:var(--red);box-shadow:0 0 8px var(--red);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .header-meta{display:flex;gap:20px;align-items:center;}
+  .stat-pill{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:70px;}
+  .stat-pill .lbl{font-size:8px;color:var(--muted);letter-spacing:2px;}
+  .stat-pill .val{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;}
+
+  /* ── STATS STRIP ── */
+  #stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;flex-shrink:0;}
+  .stat-box{background:var(--panel);border:1px solid var(--border);padding:7px 11px;position:relative;overflow:hidden;}
+  .stat-box::after{content:'';position:absolute;bottom:0;left:0;height:2px;width:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.35;}
+  .stat-box .s-lbl{font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:3px;}
+  .stat-box .s-val{font-family:'Orbitron',monospace;font-size:15px;font-weight:700;}
+  .stat-box .s-sub{font-size:9px;color:var(--muted);margin-top:1px;}
+
+  /* ── MAIN GRID ── */
+  #main-grid{display:grid;grid-template-columns:260px 1fr 260px;gap:5px;flex:1;overflow:hidden;min-height:0;}
+
+  /* ── PANELS ── */
+  .panel{background:var(--panel);border:1px solid var(--border);padding:9px;overflow:hidden;display:flex;flex-direction:column;position:relative;}
+  .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.4;}
+  .ptitle{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+  .badge{font-size:8px;background:rgba(0,200,255,0.08);border:1px solid var(--border);padding:1px 5px;border-radius:2px;color:var(--muted);}
+
+  /* ── ORDER BOOK ── */
+  .ob-hdr{display:grid;grid-template-columns:1fr 1fr 1fr;padding:2px 4px;font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:1px;}
+  .ob-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;padding:2px 4px;font-size:11px;position:relative;cursor:default;transition:background .1s;}
+  .ob-row:hover{background:rgba(0,200,255,0.04);}
+  .ob-bar{position:absolute;top:0;bottom:0;opacity:.1;transition:width .4s ease;}
+  .ob-bar.bid{background:var(--green);right:0;}
+  .ob-bar.ask{background:var(--red);left:0;}
+  .ob-row span{position:relative;z-index:1;}
+  .bp{color:var(--green);}
+  .ap{color:var(--red);}
+  .ob-mid{text-align:center;padding:5px 4px;font-family:'Orbitron',monospace;font-size:15px;font-weight:700;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:3px 0;flex-shrink:0;}
+  #imb-bar{margin-top:7px;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;}
+  #imb-fill{height:100%;border-radius:3px;transition:width .5s ease;}
+  #imb-lbl{font-size:8px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between;}
+
+  /* ── TAPE ── */
+  #trade-tape{grid-column:2;grid-row:1;}
+  #delta-wrap{height:90px;position:relative;overflow:hidden;background:rgba(0,0,0,0.3);border:1px solid var(--border);margin-bottom:5px;flex-shrink:0;}
+  #delta-canvas{width:100%;height:100%;}
+  #delta-lbl{position:absolute;top:4px;left:8px;font-size:8px;color:var(--muted);letter-spacing:2px;}
+  #delta-val{position:absolute;top:3px;right:8px;font-family:'Orbitron',monospace;font-size:14px;font-weight:700;}
+  #tape-hdr{display:grid;grid-template-columns:62px 86px 100px 1fr 64px;padding:2px 7px;font-size:8px;color:var(--muted);letter-spacing:1px;border-bottom:1px solid var(--border);margin-bottom:3px;flex-shrink:0;}
+  #tape-cont{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:1px;}
+  .tr{display:grid;grid-template-columns:62px 86px 100px 1fr 64px;align-items:center;padding:3px 7px;border-left:3px solid transparent;position:relative;overflow:hidden;font-size:11px;}
+  .tr.buy{border-left-color:var(--green);background:rgba(0,255,157,0.025);}
+  .tr.sell{border-left-color:var(--red);background:rgba(255,51,102,0.025);}
+  .tr.whale-flash{animation:wflash .6s ease;}
+  @keyframes wflash{0%{background:rgba(255,107,53,.35)}100%{background:rgba(255,107,53,.04)}}
+  .tr.whale.buy{border-left-color:var(--whale);background:rgba(255,107,53,0.05);}
+  .tr.whale.sell{border-left-color:var(--red);background:rgba(255,51,102,0.05);}
+  .tp{font-family:'Orbitron',monospace;font-size:11px;}
+  .tp.buy{color:var(--green);}
+  .tp.sell{color:var(--red);}
+  .tq{text-align:right;}
+  .tt{text-align:right;color:var(--muted);font-size:10px;}
+  .tm{color:var(--muted);font-size:9px;}
+  .tier{text-align:center;font-size:8px;letter-spacing:.5px;border-radius:2px;padding:1px 3px;}
+  .t-whale{background:rgba(255,107,53,.18);border:1px solid var(--whale);color:var(--whale);font-weight:700;}
+  .t-shark{background:rgba(255,204,0,.12);border:1px solid var(--shark);color:var(--shark);}
+  .t-fish{background:rgba(0,200,255,.08);color:var(--dim);}
+  .t-plnk{color:rgba(200,230,255,.18);font-size:7px;}
+  #div-box{padding:6px 8px;border:1px solid var(--border);margin-top:5px;text-align:center;flex-shrink:0;}
+  #div-txt{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:1px;}
+
+  /* ── RIGHT COLUMN ── */
+  #right-col{display:flex;flex-direction:column;gap:5px;overflow:hidden;}
+
+  /* ── WHALE ALERTS ── */
+  #alerts-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+  #alerts-scroll{flex:1;overflow-y:auto;scrollbar-width:none;}
+  #alerts-scroll::-webkit-scrollbar{display:none;}
+  .alert-row{padding:5px 8px;border:1px solid rgba(255,107,53,.2);background:rgba(255,107,53,.04);margin-bottom:3px;position:relative;animation:aIn .3s ease;}
+  @keyframes aIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+  .alert-row::after{content:'🐋';position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:16px;opacity:.25;}
+  .a-dir{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;margin-bottom:1px;}
+  .a-dir.buy{color:var(--green);}
+  .a-dir.sell{color:var(--red);}
+  .a-meta{font-size:9px;color:var(--muted);}
+  .a-size{color:var(--whale);font-size:11px;}
+
+  /* ── FLOW ── */
+  #flow-panel{flex-shrink:0;}
+  .fb-wrap{margin:4px 0;}
+  .fb-lbl{display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px;}
+  .fb-track{height:7px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;}
+  .fb-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+  .fb-fill.buy{background:linear-gradient(90deg,#00ff9d44,var(--green));}
+  .fb-fill.sell{background:linear-gradient(90deg,#ff336644,var(--red));}
+  #gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 2px;}
+  #gauge-svg{width:130px;height:72px;}
+  #gauge-num{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;margin-top:-6px;}
+  #gauge-txt{font-size:8px;letter-spacing:2px;margin-top:3px;color:var(--muted);}
+  #exc-split{margin-top:8px;padding-top:7px;border-top:1px solid var(--border);}
+  .exc-lbl{font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:5px;}
+
+  /* ── FILTER BTNS ── */
+  .fbtn{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 6px;cursor:pointer;border-radius:1px;transition:all .2s;}
+  .fbtn.active{background:rgba(0,200,255,.15);border:1px solid var(--accent);color:var(--accent);}
+  .fbtn.inactive{background:transparent;border:1px solid var(--border);color:var(--muted);}
+
+  /* ── CONN STATUS ── */
+  #conn-bar{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);letter-spacing:2px;z-index:500;background:rgba(3,9,18,.8);padding:3px 10px;border:1px solid var(--border);}
+
+  /* ── EASTER EGG ── */
+  #egg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:9999;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;}
+  #egg.on{display:flex;}
+  #egg-stars{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+  .star{position:absolute;width:2px;height:2px;background:var(--accent);border-radius:50%;animation:sFall linear infinite;opacity:0;}
+  @keyframes sFall{0%{opacity:0;transform:translateY(-10px)}10%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translateY(100vh)}}
+  #egg-xrp{font-family:'Orbitron',monospace;font-size:54px;font-weight:900;color:var(--accent3);text-shadow:var(--glow-whale);margin-bottom:16px;animation:flt 3s ease-in-out infinite;}
+  @keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  #egg-txt{font-family:'VT323',monospace;font-size:20px;color:var(--accent);text-align:center;max-width:560px;line-height:1.9;text-shadow:var(--glow);white-space:pre-wrap;}
+  #egg-close{font-size:9px;color:var(--muted);margin-top:28px;letter-spacing:3px;animation:fadeIn 1s ease 3.5s forwards;opacity:0;}
+  @keyframes fadeIn{to{opacity:1}}
+  #konami-hint{position:fixed;bottom:8px;right:12px;font-size:7px;color:rgba(0,200,255,.06);letter-spacing:1px;z-index:500;transition:color .4s;user-select:none;}
+  #konami-hint:hover{color:rgba(0,200,255,.18);}
+
+  /* scrollbar */
+  ::-webkit-scrollbar{width:2px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+  /* helpers */
+  .green{color:var(--green);}
+  .red{color:var(--red);}
+  .accent{color:var(--accent);}
+  .muted{color:var(--muted);}
+  .whale-c{color:var(--whale);}
+</style>
 </head>
-<body class="min-h-screen p-6">
-    <div class="max-w-6xl mx-auto">
-        <header class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-4xl font-bold flex items-center gap-3">
-                    <i class="fas fa-chart-line text-blue-400"></i> XRP Exchange Monitor
-                </h1>
-                <p class="text-slate-400">webzy87 • Auto 30s refresh</p>
-            </div>
-            <button onclick="refreshAll()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-sync"></i> Refresh
-            </button>
-        </header>
+<body>
+<div id="app">
 
-        <div id="status" class="text-center mb-4 text-yellow-400">Loading data...</div>
+  <!-- HEADER -->
+  <div id="header">
+    <div>
+      <div class="logo" id="logo-click">XRP <span>DEPTH</span> INTEL</div>
+      <div class="sub-logo"><span class="status-dot" id="dot"></span><span id="conn-txt">CONNECTING...</span> · BINANCE LIVE · GBP</div>
+    </div>
+    <div class="header-meta">
+      <div class="stat-pill">
+        <span class="lbl">PRICE GBP</span>
+        <span class="val accent" id="h-price">£-.----</span>
+      </div>
+      <div class="stat-pill">
+        <span class="lbl">24H CHG</span>
+        <span class="val" id="h-chg">+-.---%</span>
+      </div>
+      <div class="stat-pill">
+        <span class="lbl">SPREAD</span>
+        <span class="val muted" id="h-spread">-.----</span>
+      </div>
+      <div class="stat-pill">
+        <span class="lbl">WHALE COUNT</span>
+        <span class="val whale-c" id="h-whales">0</span>
+      </div>
+      <div class="stat-pill">
+        <span class="lbl">GBP RATE</span>
+        <span class="val muted" id="h-gbp">-.----</span>
+      </div>
+    </div>
+  </div>
 
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="stats"></div>
+  <!-- STATS STRIP -->
+  <div id="stats-strip">
+    <div class="stat-box">
+      <div class="s-lbl">CUM. DELTA (SESSION)</div>
+      <div class="s-val" id="s-delta">0</div>
+      <div class="s-sub" id="s-delta-sub">NEUTRAL</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">BUY PRESSURE</div>
+      <div class="s-val green" id="s-buy">0 XRP</div>
+      <div class="s-sub" id="s-buy-pct">0% of flow</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">SELL PRESSURE</div>
+      <div class="s-val red" id="s-sell">0 XRP</div>
+      <div class="s-sub" id="s-sell-pct">0% of flow</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-lbl">LARGEST PRINT</div>
+      <div class="s-val whale-c" id="s-large">0 XRP</div>
+      <div class="s-sub" id="s-large-t">--:--:--</div>
+    </div>
+  </div>
 
-        <!-- Exchanges -->
-        <div class="card rounded-xl p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-exchange-alt"></i> Top Exchange Volumes</h2>
-            <div id="exchanges" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-        </div>
+  <!-- MAIN GRID -->
+  <div id="main-grid">
 
-        <!-- Trades -->
-        <div class="card rounded-xl p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-list"></i> Recent Binance Trades</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm" id="trades-table">
-                    <thead><tr class="border-b"><th>Time</th><th>Price</th><th>Qty</th><th>Total</th></tr></thead>
-                    <tbody id="trades-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Order Book -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="card rounded-xl p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-green-400">Bids (Buy)</h2>
-                <div id="bids" class="max-h-96 overflow-auto"></div>
-            </div>
-            <div class="card rounded-xl p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-red-400">Asks (Sell)</h2>
-                <div id="asks" class="max-h-96 overflow-auto"></div>
-            </div>
-        </div>
-
-        <footer class="text-center text-slate-500 mt-12 text-sm">
-            Public APIs • Try different networks if stuck
-        </footer>
+    <!-- ORDER BOOK -->
+    <div class="panel">
+      <div class="ptitle">ORDER BOOK <span class="badge">BINANCE · XRP/GBP</span></div>
+      <div class="ob-hdr"><span>PRICE</span><span style="text-align:right">SIZE</span><span style="text-align:right">TOTAL</span></div>
+      <div id="asks-cont" style="display:flex;flex-direction:column-reverse;flex:1;overflow:hidden;"></div>
+      <div class="ob-mid">
+        <span id="mid-p">£-.----</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:6px;" id="mid-dir">↔</span>
+      </div>
+      <div id="bids-cont" style="flex:1;overflow:hidden;"></div>
+      <div id="imb-bar"><div id="imb-fill" style="width:50%"></div></div>
+      <div id="imb-lbl"><span class="green">BID</span><span id="imb-pct">50/50</span><span class="red">ASK</span></div>
     </div>
 
-    <script>
-        const PROXY = "https://corsproxy.io/?";   // More reliable one
+    <!-- TRADE TAPE -->
+    <div class="panel" id="trade-tape">
+      <div class="ptitle">
+        LIVE TRADE TAPE
+        <div style="display:flex;gap:5px;align-items:center;">
+          <button class="fbtn active" id="f-all"   onclick="setFilter('all')">ALL</button>
+          <button class="fbtn inactive" id="f-whale" onclick="setFilter('whale')">🐋 WHALE</button>
+          <button class="fbtn inactive" id="f-shark" onclick="setFilter('shark')">🦈 SHARK</button>
+          <span class="badge" id="tape-badge">LIVE</span>
+        </div>
+      </div>
+      <div id="delta-wrap">
+        <canvas id="delta-canvas"></canvas>
+        <div id="delta-lbl">CUMULATIVE DELTA</div>
+        <div id="delta-val" style="color:var(--accent)">0</div>
+      </div>
+      <div id="tape-hdr">
+        <span>TIME</span>
+        <span style="text-align:right">PRICE (GBP)</span>
+        <span style="text-align:right">SIZE (XRP)</span>
+        <span style="text-align:right">TOTAL (£)</span>
+        <span style="text-align:center">TIER</span>
+      </div>
+      <div id="tape-cont"></div>
+      <div id="div-box">
+        <div style="font-size:7px;color:var(--muted);letter-spacing:2px;margin-bottom:3px;">DIVERGENCE SIGNAL</div>
+        <div id="div-txt" class="muted">AWAITING DATA...</div>
+      </div>
+    </div>
 
-        async function fetchJSON(url) {
-            try {
-                const fullUrl = PROXY + encodeURIComponent(url);
-                const res = await fetch(fullUrl);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return await res.json();
-            } catch (e) {
-                console.error("Fetch failed for", url, e);
-                return null;
-            }
-        }
+    <!-- RIGHT COLUMN -->
+    <div id="right-col">
 
-        async function loadMarketData() {
-            const data = await fetchJSON("https://api.coingecko.com/api/v3/coins/ripple?localization=false&market_data=true");
-            if (!data) return;
-            const m = data.market_data;
-            const html = `
-                <div class="card rounded-xl p-6">
-                    <div class="text-5xl font-bold">$${m.current_price.usd.toFixed(4)}</div>
-                    <div class="${m.price_change_percentage_24h >= 0 ? 'positive' : 'negative'} text-xl">
-                        ${m.price_change_percentage_24h?.toFixed(2)}% 24h
-                    </div>
-                </div>
-                <div class="card rounded-xl p-6 text-sm">
-                    <div>Vol 24h: $${(m.total_volume.usd/1e9).toFixed(1)}B</div>
-                    <div>MCap: $${(m.market_cap.usd/1e9).toFixed(1)}B</div>
-                </div>
-                <div class="card rounded-xl p-6 text-sm">
-                    <div>High 24h: $${m.high_24h.usd}</div>
-                    <div>Low 24h: $${m.low_24h.usd}</div>
-                </div>
-            `;
-            document.getElementById('stats').innerHTML = html;
-        }
+      <!-- WHALE ALERTS -->
+      <div class="panel alerts-wrap" style="flex:1;overflow:hidden;">
+        <div class="ptitle">WHALE ALERTS <span class="badge" id="alert-ct">0</span></div>
+        <div id="alerts-scroll"></div>
+      </div>
 
-        // ... (loadExchanges, loadRecentTrades, loadOrderBook similar to before - using the new PROXY)
+      <!-- FLOW METER -->
+      <div class="panel" id="flow-panel">
+        <div class="ptitle">ORDER FLOW</div>
+        <div id="gauge-wrap">
+          <svg id="gauge-svg" viewBox="0 0 130 72">
+            <defs>
+              <linearGradient id="gbuy" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#00ff9d;stop-opacity:.25"/>
+                <stop offset="100%" style="stop-color:#00ff9d;stop-opacity:1"/>
+              </linearGradient>
+              <linearGradient id="gsell" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#ff3366;stop-opacity:1"/>
+                <stop offset="100%" style="stop-color:#ff3366;stop-opacity:.25"/>
+              </linearGradient>
+            </defs>
+            <path d="M 8 65 A 57 57 0 0 1 122 65" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="9"/>
+            <path d="M 8 65 A 57 57 0 0 1 122 65" fill="none" stroke="url(#gsell)" stroke-width="9" stroke-dasharray="0 200" stroke-linecap="round" id="g-sell-arc"/>
+            <path d="M 8 65 A 57 57 0 0 1 122 65" fill="none" stroke="url(#gbuy)"  stroke-width="9" stroke-dasharray="0 200" stroke-linecap="round" id="g-buy-arc"/>
+            <line id="g-needle" x1="65" y1="65" x2="65" y2="18" stroke="white" stroke-width="2" stroke-linecap="round" transform="rotate(0,65,65)"/>
+            <circle cx="65" cy="65" r="3.5" fill="white" opacity=".8"/>
+            <text x="8" y="72" font-size="7" fill="rgba(255,51,102,.65)" font-family="Share Tech Mono">SELL</text>
+            <text x="107" y="72" font-size="7" fill="rgba(0,255,157,.65)" font-family="Share Tech Mono">BUY</text>
+          </svg>
+          <div id="gauge-num" style="color:var(--accent)">50%</div>
+          <div id="gauge-txt">BALANCED</div>
+        </div>
+        <div class="fb-wrap">
+          <div class="fb-lbl"><span class="green">BUY VOL</span><span id="fl-buy">0</span></div>
+          <div class="fb-track"><div class="fb-fill buy" id="fl-buy-b" style="width:50%"></div></div>
+        </div>
+        <div class="fb-wrap">
+          <div class="fb-lbl"><span class="red">SELL VOL</span><span id="fl-sell">0</span></div>
+          <div class="fb-track"><div class="fb-fill sell" id="fl-sell-b" style="width:50%"></div></div>
+        </div>
+        <div id="exc-split">
+          <div class="exc-lbl">EXCHANGE SPLIT</div>
+          <div id="exc-rows"></div>
+        </div>
+      </div>
 
-        async function loadExchanges() {
-            const data = await fetchJSON("https://api.coingecko.com/api/v3/coins/ripple/tickers");
-            if (!data) return;
-            // same as previous version...
-            let html = '';
-            const top = data.tickers.slice(0,8).filter(t => ['Binance','Coinbase','Kraken','Bybit'].some(n => t.market.name.includes(n)));
-            top.forEach(t => {
-                html += `<div class="card p-4"><div class="font-semibold">${t.market.name}</div><div class="text-xl">${t.last}</div></div>`;
-            });
-            document.getElementById('exchanges').innerHTML = html || 'No data';
-        }
+    </div>
+  </div>
+</div>
 
-        async function loadRecentTrades() {
-            const trades = await fetchJSON("https://api.binance.com/api/v3/trades?symbol=XRPUSDT&limit=15");
-            if (!trades) return;
-            let html = '';
-            trades.forEach(t => {
-                const isBuy = !t.isBuyerMaker;
-                html += `<tr class="${isBuy ? 'text-green-400' : 'text-red-400'} border-b"><td>${new Date(t.time).toLocaleTimeString()}</td><td>${parseFloat(t.price).toFixed(4)}</td><td>${parseFloat(t.qty).toFixed(2)}</td><td>$${(parseFloat(t.price)*parseFloat(t.qty)).toFixed(0)}</td></tr>`;
-            });
-            document.getElementById('trades-body').innerHTML = html;
-        }
+<!-- CONN STATUS BAR -->
+<div id="conn-bar">⬡ DEPTH INTEL v1.0 · WEBZY87 · LIVE DATA: BINANCE WEBSOCKET</div>
 
-        async function loadOrderBook() {
-            const book = await fetchJSON("https://api.binance.com/api/v3/depth?symbol=XRPUSDT&limit=15");
-            if (!book) return;
-            // Bids and Asks tables (same logic as before)
-            let bidsHTML = '<table class="w-full"><tr><th>Price</th><th>Qty</th><th>Cum</th></tr>';
-            let cum = 0;
-            book.bids.forEach(b => { cum += parseFloat(b[1]); bidsHTML += `<tr class="text-green-400"><td>${parseFloat(b[0]).toFixed(4)}</td><td>${parseFloat(b[1]).toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`; });
-            bidsHTML += '</table>';
-            document.getElementById('bids').innerHTML = bidsHTML;
+<!-- EASTER EGG -->
+<div id="egg">
+  <div id="egg-stars"></div>
+  <div id="egg-xrp">⬡ XRP</div>
+  <div id="egg-txt"></div>
+  <div id="egg-close">[ CLICK ANYWHERE TO RETURN TO THE SURFACE ]</div>
+</div>
 
-            let asksHTML = '<table class="w-full"><tr><th>Price</th><th>Qty</th><th>Cum</th></tr>';
-            cum = 0;
-            book.asks.forEach(a => { cum += parseFloat(a[1]); asksHTML += `<tr class="text-red-400"><td>${parseFloat(a[0]).toFixed(4)}</td><td>${parseFloat(a[1]).toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`; });
-            asksHTML += '</table>';
-            document.getElementById('asks').innerHTML = asksHTML;
-        }
+<div id="konami-hint" title="You know what this is">↑↑↓↓←→←→BA</div>
 
-        async function refreshAll() {
-            document.getElementById('status').textContent = 'Fetching fresh data...';
-            await Promise.all([loadMarketData(), loadExchanges(), loadRecentTrades(), loadOrderBook()]);
-            document.getElementById('status').textContent = 'Updated ✓';
-            setTimeout(() => document.getElementById('status').textContent = '', 3000);
-        }
+<script>
+// ═══════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════
+const WHALE  = 100000;
+const SHARK  =  25000;
+const FISH   =   5000;
+const MAX_TAPE      = 100;
+const MAX_DELTA_PTS = 120;
+const MAX_ALERTS    =  25;
+const RECONNECT_MS  = 3000;
 
-        window.onload = () => {
-            refreshAll();
-            setInterval(refreshAll, 30000);
-        };
-    </script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let S = {
+  gbpRate: 0.79,        // updated from Binance XRPGBP ticker
+  priceGbp: 0,
+  priceUsdt: 0,
+  prevPrice: 0,
+  change24h: 0,
+  buyVol:  0,
+  sellVol: 0,
+  cumDelta: 0,
+  deltaHistory: new Array(MAX_DELTA_PTS).fill(0),
+  whaleCount: 0,
+  largestPrint: 0,
+  largestTime: '',
+  trades: [],
+  alerts: [],
+  filter: 'all',
+  // exchange buckets — we label by stream source
+  sources: { Binance: {buy:0,sell:0} },
+  wsState: 'disconnected', // connecting | live | error
+  gbpWsState: 'disconnected',
+  obBids: [],
+  obAsks: [],
+};
+
+// ═══════════════════════════════════════════════
+//  GBP CONVERSION — fetch from Binance
+//  XRPUSDT aggTrade → convert with GBPUSDT rate
+// ═══════════════════════════════════════════════
+let gbpusdtWs = null;
+function connectGbpRate() {
+  // Use XRPGBP ticker on Binance — direct GBP pair!
+  // Also grab 24h ticker for change %
+  try {
+    const streams = 'xrpgbp@aggTrade/xrpgbp@ticker/xrpgbp@depth20@1000ms';
+    gbpusdtWs = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+    gbpusdtWs.onopen = () => {
+      S.gbpWsState = 'live';
+      updateConnStatus();
+    };
+    gbpusdtWs.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        const data = msg.data;
+        const stream = msg.stream || '';
+        if (stream.includes('aggTrade')) handleAggTrade(data);
+        else if (stream.includes('ticker'))  handleTicker(data);
+        else if (stream.includes('depth'))   handleDepth(data);
+      } catch(err){}
+    };
+    gbpusdtWs.onerror = () => { S.gbpWsState='error'; updateConnStatus(); };
+    gbpusdtWs.onclose = () => {
+      S.gbpWsState='disconnected';
+      updateConnStatus();
+      setTimeout(connectGbpRate, RECONNECT_MS);
+    };
+  } catch(e) {
+    S.gbpWsState='error';
+    updateConnStatus();
+    setTimeout(connectGbpRate, RECONNECT_MS);
+  }
+}
+
+function handleAggTrade(d) {
+  // d.p = price (GBP), d.q = quantity (XRP), d.m = maker (true=sell, false=buy)
+  const price = parseFloat(d.p);
+  const qty   = parseFloat(d.q);
+  const isBuy = !d.m; // m=true means buyer is maker → actually taker sell
+
+  if (!price || !qty) return;
+
+  S.priceGbp  = price;
+  S.prevPrice = S.priceGbp;
+
+  // Total GBP
+  const total = price * qty;
+  const now   = new Date();
+  const t     = now.toTimeString().slice(0,8);
+
+  // Classify
+  const tier = qty >= WHALE ? 'whale' : qty >= SHARK ? 'shark' : qty >= FISH ? 'fish' : 'plankton';
+
+  const trade = { time:t, price, qty, total, isBuy, tier };
+
+  // Update volumes
+  if (isBuy) {
+    S.buyVol   += qty;
+    S.cumDelta += qty;
+    S.sources.Binance.buy += qty;
+  } else {
+    S.sellVol  += qty;
+    S.cumDelta -= qty;
+    S.sources.Binance.sell += qty;
+  }
+
+  // Delta history
+  S.deltaHistory.push(S.cumDelta);
+  if (S.deltaHistory.length > MAX_DELTA_PTS) S.deltaHistory.shift();
+
+  // Largest
+  if (qty > S.largestPrint) {
+    S.largestPrint = qty;
+    S.largestTime  = t;
+  }
+
+  // Tape
+  S.trades.unshift(trade);
+  if (S.trades.length > MAX_TAPE) S.trades.pop();
+
+  // Whale alert
+  if (tier === 'whale') {
+    S.whaleCount++;
+    S.alerts.unshift({ time:t, qty, isBuy, price, total, exchange:'Binance' });
+    if (S.alerts.length > MAX_ALERTS) S.alerts.pop();
+    renderWhaleAlerts();
+  }
+
+  renderTape(true);
+  renderDeltaChart();
+  renderHeader();
+  renderStats();
+  renderFlowMeter();
+  renderDivergence();
+}
+
+function handleTicker(d) {
+  S.change24h = parseFloat(d.P); // percent change
+  S.priceGbp  = parseFloat(d.c); // last price GBP
+}
+
+function handleDepth(d) {
+  // d.bids / d.asks arrays of [price, qty]
+  S.obBids = (d.bids || []).slice(0,14).map(r=>({price:parseFloat(r[0]),size:parseFloat(r[1])}));
+  S.obAsks = (d.asks || []).slice(0,14).map(r=>({price:parseFloat(r[0]),size:parseFloat(r[1])}));
+  renderOrderBook();
+}
+
+// ═══════════════════════════════════════════════
+//  CONNECTION STATUS
+// ═══════════════════════════════════════════════
+function updateConnStatus() {
+  const dot = document.getElementById('dot');
+  const txt = document.getElementById('conn-txt');
+  const live = S.gbpWsState === 'live';
+  const err  = S.gbpWsState === 'error';
+  dot.className = 'status-dot' + (live?'':err?' err':' warn');
+  txt.textContent = live ? 'LIVE · BINANCE XRPGBP' : err ? 'CONNECTION ERROR' : 'CONNECTING...';
+  document.getElementById('tape-badge').textContent = live ? 'LIVE' : '...';
+}
+
+// ═══════════════════════════════════════════════
+//  FORMATTERS
+// ═══════════════════════════════════════════════
+function fmt(n, d=2) {
+  return Number(n).toLocaleString('en-GB',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function fmtXRP(n) {
+  if (n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return Math.floor(n).toLocaleString('en-GB');
+}
+function fmtGBP(n) {
+  if (n>=1e6) return '£'+(n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return '£'+(n/1e3).toFixed(1)+'K';
+  return '£'+fmt(n,2);
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — HEADER
+// ═══════════════════════════════════════════════
+function renderHeader() {
+  document.getElementById('h-price').textContent = S.priceGbp ? '£'+fmt(S.priceGbp,4) : '£-.----';
+  const ce = document.getElementById('h-chg');
+  const chg = S.change24h;
+  ce.textContent = (chg>=0?'+':'')+fmt(chg,2)+'%';
+  ce.style.color = chg>=0?'var(--green)':'var(--red)';
+  document.getElementById('h-whales').textContent = S.whaleCount;
+  const spread = S.priceGbp * 0.0002;
+  document.getElementById('h-spread').textContent = S.priceGbp ? fmt(spread,4) : '-.----';
+  document.getElementById('h-gbp').textContent = '£'+fmt(S.priceGbp,4);
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — STATS STRIP
+// ═══════════════════════════════════════════════
+function renderStats() {
+  const d  = S.cumDelta;
+  const de = document.getElementById('s-delta');
+  de.textContent = (d>=0?'+':'')+fmtXRP(Math.abs(d));
+  de.style.color = d>=0?'var(--green)':'var(--red)';
+  const sub = d>100000?'ACCUMULATION':d<-100000?'DISTRIBUTION':d>20000?'SLIGHT BUY':d<-20000?'SLIGHT SELL':'NEUTRAL';
+  document.getElementById('s-delta-sub').textContent = sub;
+  document.getElementById('s-buy').textContent  = fmtXRP(S.buyVol)+' XRP';
+  document.getElementById('s-sell').textContent = fmtXRP(S.sellVol)+' XRP';
+  const tot = S.buyVol+S.sellVol||1;
+  document.getElementById('s-buy-pct').textContent  = fmt(S.buyVol/tot*100,1)+'% of flow';
+  document.getElementById('s-sell-pct').textContent = fmt(S.sellVol/tot*100,1)+'% of flow';
+  document.getElementById('s-large').textContent = fmtXRP(S.largestPrint)+' XRP';
+  document.getElementById('s-large-t').textContent = S.largestTime||'--:--:--';
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — ORDER BOOK
+// ═══════════════════════════════════════════════
+function renderOrderBook() {
+  if (!S.obBids.length && !S.obAsks.length) return;
+  const allSizes = [...S.obBids,...S.obAsks].map(r=>r.size);
+  const maxSz = Math.max(...allSizes) || 1;
+
+  let cumBid=0, bHTML='', aHTML='';
+  S.obBids.forEach(r=>{
+    cumBid+=r.size;
+    const pct=r.size/maxSz*100;
+    bHTML+=`<div class="ob-row"><span class="bp">£${fmt(r.price,4)}</span><span style="text-align:right">${fmtXRP(r.size)}</span><span style="text-align:right;color:var(--muted)">${fmtXRP(cumBid)}</span><div class="ob-bar bid" style="width:${pct}%"></div></div>`;
+  });
+  let cumAsk=0;
+  S.obAsks.forEach(r=>{
+    cumAsk+=r.size;
+    const pct=r.size/maxSz*100;
+    aHTML+=`<div class="ob-row"><span class="ap">£${fmt(r.price,4)}</span><span style="text-align:right">${fmtXRP(r.size)}</span><span style="text-align:right;color:var(--muted)">${fmtXRP(cumAsk)}</span><div class="ob-bar ask" style="width:${pct}%"></div></div>`;
+  });
+
+  document.getElementById('bids-cont').innerHTML = bHTML;
+  document.getElementById('asks-cont').innerHTML = aHTML;
+
+  const bidTot = S.obBids.reduce((s,r)=>s+r.size,0);
+  const askTot = S.obAsks.reduce((s,r)=>s+r.size,0);
+  const bidPct = bidTot/(bidTot+askTot||1)*100;
+  const fill = document.getElementById('imb-fill');
+  fill.style.width  = bidPct+'%';
+  fill.style.background = bidPct>56?'var(--green)':bidPct<44?'var(--red)':'var(--accent)';
+  document.getElementById('imb-pct').textContent = fmt(bidPct,0)+'% / '+fmt(100-bidPct,0)+'%';
+
+  const mp  = document.getElementById('mid-p');
+  const dir = document.getElementById('mid-dir');
+  if (S.priceGbp) {
+    mp.textContent = '£'+fmt(S.priceGbp,4);
+    mp.style.color = S.priceGbp>=S.prevPrice?'var(--green)':'var(--red)';
+    dir.textContent = S.priceGbp>=S.prevPrice?'↑':'↓';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — TAPE
+// ═══════════════════════════════════════════════
+let filter = 'all';
+window.setFilter = function(f){
+  filter=f;
+  ['all','whale','shark'].forEach(id=>{
+    const el=document.getElementById('f-'+id);
+    el.className='fbtn '+(id===f?'active':'inactive');
+  });
+  renderTape(false);
+};
+
+function renderTape(animate) {
+  const cont = document.getElementById('tape-cont');
+  const rows  = filter==='all' ? S.trades : S.trades.filter(t=>t.tier===filter);
+  let html='';
+  rows.slice(0,60).forEach((t,i)=>{
+    const tierHTML = t.tier==='whale' ? `<span class="tier t-whale">🐋 WHALE</span>` :
+                     t.tier==='shark' ? `<span class="tier t-shark">🦈 SHARK</span>` :
+                     t.tier==='fish'  ? `<span class="tier t-fish">FISH</span>` :
+                                        `<span class="tier t-plnk">·</span>`;
+    const cls = `tr ${t.isBuy?'buy':'sell'} ${t.tier==='whale'?(i===0&&animate?'whale whale-flash':'whale'):''}`;
+    html+=`<div class="${cls}">
+      <span class="tm">${t.time}</span>
+      <span class="tp ${t.isBuy?'buy':'sell'}" style="text-align:right">£${fmt(t.price,4)}</span>
+      <span class="tq" style="color:${t.isBuy?'var(--green)':'var(--red)'}">${fmtXRP(t.qty)}</span>
+      <span class="tt">${fmtGBP(t.total)}</span>
+      ${tierHTML}
+    </div>`;
+  });
+  cont.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — WHALE ALERTS
+// ═══════════════════════════════════════════════
+function renderWhaleAlerts() {
+  document.getElementById('alert-ct').textContent = S.alerts.length;
+  const c = document.getElementById('alerts-scroll');
+  let html='';
+  S.alerts.slice(0,15).forEach(a=>{
+    html+=`<div class="alert-row">
+      <div class="a-dir ${a.isBuy?'buy':'sell'}">${a.isBuy?'▲ BUY WHALE':'▼ SELL WHALE'}</div>
+      <div class="a-size">${fmtXRP(a.qty)} XRP · ${fmtGBP(a.total)}</div>
+      <div class="a-meta">${a.exchange} · £${fmt(a.price,4)} · ${a.time}</div>
+    </div>`;
+  });
+  c.innerHTML = html || '<div style="color:var(--muted);font-size:9px;padding:8px;text-align:center">MONITORING FOR WHALES...</div>';
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — DELTA CHART
+// ═══════════════════════════════════════════════
+function renderDeltaChart() {
+  const canvas = document.getElementById('delta-canvas');
+  const wrap   = document.getElementById('delta-wrap');
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  const ctx = canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const data = S.deltaHistory;
+  const min  = Math.min(...data);
+  const max  = Math.max(...data);
+  const range= max-min||1;
+
+  // Zero line
+  const zy = h-((0-min)/range*(h*.78)+h*.11);
+  ctx.strokeStyle='rgba(255,255,255,.08)';
+  ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(0,zy); ctx.lineTo(w,zy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const last = data[data.length-1];
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  if (last>=0) { grad.addColorStop(0,'rgba(0,255,157,.28)'); grad.addColorStop(1,'rgba(0,255,157,0)'); }
+  else         { grad.addColorStop(0,'rgba(255,51,102,0)');  grad.addColorStop(1,'rgba(255,51,102,.28)'); }
+
+  const pts = data.map((v,i)=>({
+    x: i/(data.length-1)*w,
+    y: h-((v-min)/range*(h*.78)+h*.11)
+  }));
+
+  ctx.beginPath();
+  pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle = last>=0?'#00ff9d':'#ff3366';
+  ctx.lineWidth=1.5;
+  pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+
+  const dv = document.getElementById('delta-val');
+  dv.textContent = (S.cumDelta>=0?'+':'')+fmtXRP(Math.abs(S.cumDelta));
+  dv.style.color = S.cumDelta>=0?'var(--green)':'var(--red)';
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — FLOW METER
+// ═══════════════════════════════════════════════
+function renderFlowMeter() {
+  const tot    = S.buyVol+S.sellVol||1;
+  const buyPct = S.buyVol/tot*100;
+
+  document.getElementById('fl-buy').textContent  = fmtXRP(S.buyVol);
+  document.getElementById('fl-sell').textContent = fmtXRP(S.sellVol);
+  document.getElementById('fl-buy-b').style.width  = buyPct+'%';
+  document.getElementById('fl-sell-b').style.width = (100-buyPct)+'%';
+
+  // Gauge needle: 0%=−90°, 100%=+90°
+  const angle = (buyPct/100*180)-90;
+  document.getElementById('g-needle').setAttribute('transform',`rotate(${angle},65,65)`);
+  const gn = document.getElementById('gauge-num');
+  gn.textContent = fmt(buyPct,0)+'%';
+  gn.style.color = buyPct>55?'var(--green)':buyPct<45?'var(--red)':'var(--accent)';
+  document.getElementById('gauge-txt').textContent =
+    buyPct>65?'STRONG BUY PRESSURE':buyPct>55?'BUY DOMINANT':buyPct<35?'STRONG SELL PRESSURE':buyPct<45?'SELL DOMINANT':'BALANCED';
+
+  // Exchange rows
+  let html='';
+  Object.entries(S.sources).forEach(([name,v])=>{
+    const t=v.buy+v.sell||1;
+    const bp=v.buy/t*100;
+    const col=bp>55?'var(--green)':bp<45?'var(--red)':'var(--accent)';
+    html+=`<div style="font-size:9px;margin-bottom:5px">
+      <div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:2px">
+        <span>${name}</span><span style="color:${col}">${fmt(bp,0)}% BUY</span>
+      </div>
+      <div style="height:3px;background:rgba(255,255,255,.05);border-radius:2px">
+        <div style="height:100%;width:${bp}%;background:${col};border-radius:2px;transition:width .5s"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('exc-rows').innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — DIVERGENCE
+// ═══════════════════════════════════════════════
+let baselinePrice = 0;
+function renderDivergence() {
+  if (!baselinePrice && S.priceGbp) baselinePrice = S.priceGbp;
+  const el = document.getElementById('div-txt');
+  const d  = S.cumDelta;
+  const tot= S.buyVol+S.sellVol||1;
+  const bp = S.buyVol/tot*100;
+  const priceUp = S.priceGbp > baselinePrice*1.004;
+  const priceDn = S.priceGbp < baselinePrice*0.996;
+
+  if (!S.priceGbp || tot < 10000) {
+    el.textContent='AWAITING SUFFICIENT DATA...'; el.style.color='var(--muted)'; return;
+  }
+  if (priceUp && d < -20000) {
+    el.textContent='⚠  DISTRIBUTION — PRICE RISING, DELTA NEGATIVE';
+    el.style.color='var(--red)';
+  } else if (priceDn && d > 20000) {
+    el.textContent='◆  ACCUMULATION — PRICE FALLING, DELTA POSITIVE';
+    el.style.color='var(--green)';
+  } else if (bp>64 && d>0) {
+    el.textContent='▲  STRONG BUY FLOW — CONFIRMED BY DELTA';
+    el.style.color='var(--green)';
+  } else if (bp<36 && d<0) {
+    el.textContent='▼  STRONG SELL FLOW — CONFIRMED BY DELTA';
+    el.style.color='var(--red)';
+  } else {
+    el.textContent='—  NO CLEAR DIVERGENCE'; el.style.color='var(--muted)';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  EASTER EGG
+// ═══════════════════════════════════════════════
+const KONAMI   = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let konamiSeq  = [];
+let eggActive  = false;
+
+const EGG_MSG = `DEPTH INTEL — CLASSIFIED LAYER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You found it.
+
+The stuff retail isn't meant to see?
+It's not hidden in the order book.
+
+It's in the silence between the trades.
+The walls that appear — then vanish.
+The delta that walks away from price.
+The whale that buys slowly,
+so slowly the tape looks like noise.
+
+XRP doesn't move on news.
+It moves when they're ready.
+
+Two years of conviction.
+That's not a trade.
+That's a promise.
+
+Keep watching the dark water.
+The lotus grows there.
+
+⬡  REN × WEBZY87 · DEPTH INTEL v1.0`;
+
+function showEgg() {
+  if (eggActive) return;
+  eggActive=true;
+  const sc=document.getElementById('egg-stars');
+  sc.innerHTML='';
+  for(let i=0;i<90;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;animation-duration:${3+Math.random()*5}s;animation-delay:${Math.random()*4}s;`;
+    sc.appendChild(s);
+  }
+  document.getElementById('egg-txt').textContent=EGG_MSG;
+  document.getElementById('egg').classList.add('on');
+}
+document.getElementById('egg').addEventListener('click',()=>{
+  document.getElementById('egg').classList.remove('on');
+  eggActive=false;
+});
+document.addEventListener('keydown',e=>{
+  konamiSeq.push(e.key);
+  if(konamiSeq.length>KONAMI.length) konamiSeq.shift();
+  if(JSON.stringify(konamiSeq)===JSON.stringify(KONAMI)) showEgg();
+});
+// Triple-click logo
+let logoClicks=0,logoT;
+document.getElementById('logo-click').addEventListener('click',()=>{
+  logoClicks++;clearTimeout(logoT);
+  logoT=setTimeout(()=>logoClicks=0,600);
+  if(logoClicks>=3) showEgg();
+});
+// Secret: type "xrp" anywhere
+let xrpBuf='';
+document.addEventListener('keypress',e=>{
+  xrpBuf=(xrpBuf+e.key).slice(-3);
+  if(xrpBuf.toLowerCase()==='xrp') showEgg();
+});
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+updateConnStatus();
+connectGbpRate();
+
+// Periodic full re-render for order book / header even if no trade
+setInterval(()=>{
+  renderHeader();
+  renderOrderBook();
+},2000);
+</script>
 </body>
 </html>
