@@ -9,9 +9,6 @@
     <style>
         body { background: #0f172a; color: #e2e8f0; }
         .card { background: #1e2937; }
-        table { border-collapse: collapse; }
-        th, td { padding: 8px 12px; text-align: right; }
-        th { text-align: left; }
         .positive { color: #22c55e; }
         .negative { color: #ef4444; }
     </style>
@@ -23,28 +20,30 @@
                 <h1 class="text-4xl font-bold flex items-center gap-3">
                     <i class="fas fa-chart-line text-blue-400"></i> XRP Exchange Monitor
                 </h1>
-                <p class="text-slate-400">Live • webzy87 • Auto-refreshes every 30s</p>
+                <p class="text-slate-400">webzy87 • Auto 30s refresh</p>
             </div>
             <button onclick="refreshAll()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-sync"></i> Refresh Now
+                <i class="fas fa-sync"></i> Refresh
             </button>
         </header>
+
+        <div id="status" class="text-center mb-4 text-yellow-400">Loading data...</div>
 
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="stats"></div>
 
-        <!-- Exchange Volumes -->
+        <!-- Exchanges -->
         <div class="card rounded-xl p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2"><i class="fas fa-exchange-alt"></i> Top Exchange Volumes (24h)</h2>
+            <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-exchange-alt"></i> Top Exchange Volumes</h2>
             <div id="exchanges" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
         </div>
 
-        <!-- Recent Trades -->
+        <!-- Trades -->
         <div class="card rounded-xl p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2"><i class="fas fa-list"></i> Recent Binance XRPUSDT Trades</h2>
+            <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-list"></i> Recent Binance Trades</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm" id="trades-table">
-                    <thead><tr class="border-b border-slate-600"><th>Time</th><th>Price</th><th>Qty</th><th>Total USD</th></tr></thead>
+                    <thead><tr class="border-b"><th>Time</th><th>Price</th><th>Qty</th><th>Total</th></tr></thead>
                     <tbody id="trades-body"></tbody>
                 </table>
             </div>
@@ -53,120 +52,105 @@
         <!-- Order Book -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="card rounded-xl p-6">
-                <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2"><i class="fas fa-arrow-up text-green-400"></i> Bids (Buy Wall)</h2>
-                <div id="bids" class="max-h-96 overflow-auto text-sm"></div>
+                <h2 class="text-2xl font-semibold mb-4 text-green-400">Bids (Buy)</h2>
+                <div id="bids" class="max-h-96 overflow-auto"></div>
             </div>
             <div class="card rounded-xl p-6">
-                <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2"><i class="fas fa-arrow-down text-red-400"></i> Asks (Sell Wall)</h2>
-                <div id="asks" class="max-h-96 overflow-auto text-sm"></div>
+                <h2 class="text-2xl font-semibold mb-4 text-red-400">Asks (Sell)</h2>
+                <div id="asks" class="max-h-96 overflow-auto"></div>
             </div>
         </div>
 
         <footer class="text-center text-slate-500 mt-12 text-sm">
-            Using public APIs + CORS proxy • Data refreshes automatically
+            Public APIs • Try different networks if stuck
         </footer>
     </div>
 
     <script>
-        const CORS_PROXY = "https://api.codetabs.com/v1/proxy?quest=";  // Reliable free proxy
+        const PROXY = "https://corsproxy.io/?";   // More reliable one
 
         async function fetchJSON(url) {
             try {
-                const res = await fetch(CORS_PROXY + encodeURIComponent(url));
-                if (!res.ok) throw new Error("HTTP " + res.status);
+                const fullUrl = PROXY + encodeURIComponent(url);
+                const res = await fetch(fullUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return await res.json();
-            } catch(e) {
-                console.error("Fetch error:", e);
+            } catch (e) {
+                console.error("Fetch failed for", url, e);
                 return null;
             }
         }
 
         async function loadMarketData() {
-            const xrp = await fetchJSON("https://api.coingecko.com/api/v3/coins/ripple?localization=false&tickers=false&market_data=true");
-            if (!xrp) return;
-            const m = xrp.market_data;
-            const statsHTML = `
+            const data = await fetchJSON("https://api.coingecko.com/api/v3/coins/ripple?localization=false&market_data=true");
+            if (!data) return;
+            const m = data.market_data;
+            const html = `
                 <div class="card rounded-xl p-6">
-                    <div class="text-5xl font-mono font-bold">$${m.current_price.usd.toFixed(4)}</div>
-                    <div class="text-xl ${m.price_change_percentage_24h >= 0 ? 'positive' : 'negative'}">
-                        ${m.price_change_percentage_24h?.toFixed(2)}% (24h)
-                    </div>
-                    <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        <div>MCap: $${(m.market_cap.usd/1e9).toFixed(1)}B</div>
-                        <div>Vol: $${(m.total_volume.usd/1e9).toFixed(1)}B</div>
+                    <div class="text-5xl font-bold">$${m.current_price.usd.toFixed(4)}</div>
+                    <div class="${m.price_change_percentage_24h >= 0 ? 'positive' : 'negative'} text-xl">
+                        ${m.price_change_percentage_24h?.toFixed(2)}% 24h
                     </div>
                 </div>
-                <!-- more stats cards... (same as before) -->
+                <div class="card rounded-xl p-6 text-sm">
+                    <div>Vol 24h: $${(m.total_volume.usd/1e9).toFixed(1)}B</div>
+                    <div>MCap: $${(m.market_cap.usd/1e9).toFixed(1)}B</div>
+                </div>
+                <div class="card rounded-xl p-6 text-sm">
+                    <div>High 24h: $${m.high_24h.usd}</div>
+                    <div>Low 24h: $${m.low_24h.usd}</div>
+                </div>
             `;
-            document.getElementById('stats').innerHTML = statsHTML;  // Expand if needed
+            document.getElementById('stats').innerHTML = html;
         }
+
+        // ... (loadExchanges, loadRecentTrades, loadOrderBook similar to before - using the new PROXY)
 
         async function loadExchanges() {
             const data = await fetchJSON("https://api.coingecko.com/api/v3/coins/ripple/tickers");
             if (!data) return;
-            const top = data.tickers.slice(0,8).filter(t => ['Binance','Coinbase','Kraken','Bybit'].some(ex => t.market.name.includes(ex)));
+            // same as previous version...
             let html = '';
+            const top = data.tickers.slice(0,8).filter(t => ['Binance','Coinbase','Kraken','Bybit'].some(n => t.market.name.includes(n)));
             top.forEach(t => {
-                const change = t.last > (t.open || t.last) ? 'positive' : 'negative';
-                html += `
-                    <div class="card p-4 text-sm">
-                        <div class="font-semibold">${t.market.name}</div>
-                        <div class="text-xl ${change}">${t.last}</div>
-                        <div class="text-xs opacity-75">Vol: ~$${(t.volume * t.last / 1e6).toFixed(1)}M</div>
-                    </div>
-                `;
+                html += `<div class="card p-4"><div class="font-semibold">${t.market.name}</div><div class="text-xl">${t.last}</div></div>`;
             });
-            document.getElementById('exchanges').innerHTML = html || '<p class="col-span-full text-slate-400">Loading exchanges...</p>';
+            document.getElementById('exchanges').innerHTML = html || 'No data';
         }
 
         async function loadRecentTrades() {
-            const trades = await fetchJSON("https://api.binance.com/api/v3/trades?symbol=XRPUSDT&limit=20");
+            const trades = await fetchJSON("https://api.binance.com/api/v3/trades?symbol=XRPUSDT&limit=15");
             if (!trades) return;
             let html = '';
             trades.forEach(t => {
-                const isBuy = t.isBuyerMaker === false;
-                html += `
-                    <tr class="border-b border-slate-700 hover:bg-slate-800 ${isBuy ? 'text-green-400' : 'text-red-400'}">
-                        <td>${new Date(t.time).toLocaleTimeString()}</td>
-                        <td>${parseFloat(t.price).toFixed(4)}</td>
-                        <td>${parseFloat(t.qty).toFixed(2)}</td>
-                        <td>$${(parseFloat(t.price) * parseFloat(t.qty)).toFixed(0)}</td>
-                    </tr>
-                `;
+                const isBuy = !t.isBuyerMaker;
+                html += `<tr class="${isBuy ? 'text-green-400' : 'text-red-400'} border-b"><td>${new Date(t.time).toLocaleTimeString()}</td><td>${parseFloat(t.price).toFixed(4)}</td><td>${parseFloat(t.qty).toFixed(2)}</td><td>$${(parseFloat(t.price)*parseFloat(t.qty)).toFixed(0)}</td></tr>`;
             });
             document.getElementById('trades-body').innerHTML = html;
         }
 
         async function loadOrderBook() {
-            const book = await fetchJSON("https://api.binance.com/api/v3/depth?symbol=XRPUSDT&limit=20");
+            const book = await fetchJSON("https://api.binance.com/api/v3/depth?symbol=XRPUSDT&limit=15");
             if (!book) return;
-
-            // Bids (simplified)
-            let bidsHTML = '<table class="w-full"><thead><tr><th>Price</th><th>Amount</th><th>Cum</th></tr></thead><tbody>';
+            // Bids and Asks tables (same logic as before)
+            let bidsHTML = '<table class="w-full"><tr><th>Price</th><th>Qty</th><th>Cum</th></tr>';
             let cum = 0;
-            book.bids.forEach(b => {
-                const p = parseFloat(b[0]), a = parseFloat(b[1]);
-                cum += a;
-                bidsHTML += `<tr class="text-green-400"><td>${p.toFixed(4)}</td><td>${a.toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`;
-            });
-            bidsHTML += '</tbody></table>';
+            book.bids.forEach(b => { cum += parseFloat(b[1]); bidsHTML += `<tr class="text-green-400"><td>${parseFloat(b[0]).toFixed(4)}</td><td>${parseFloat(b[1]).toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`; });
+            bidsHTML += '</table>';
             document.getElementById('bids').innerHTML = bidsHTML;
 
-            // Asks
-            let asksHTML = '<table class="w-full"><thead><tr><th>Price</th><th>Amount</th><th>Cum</th></tr></thead><tbody>';
+            let asksHTML = '<table class="w-full"><tr><th>Price</th><th>Qty</th><th>Cum</th></tr>';
             cum = 0;
-            book.asks.forEach(a => {
-                const p = parseFloat(a[0]), amt = parseFloat(a[1]);
-                cum += amt;
-                asksHTML += `<tr class="text-red-400"><td>${p.toFixed(4)}</td><td>${amt.toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`;
-            });
-            asksHTML += '</tbody></table>';
+            book.asks.forEach(a => { cum += parseFloat(a[1]); asksHTML += `<tr class="text-red-400"><td>${parseFloat(a[0]).toFixed(4)}</td><td>${parseFloat(a[1]).toFixed(2)}</td><td>${cum.toFixed(0)}</td></tr>`; });
+            asksHTML += '</table>';
             document.getElementById('asks').innerHTML = asksHTML;
         }
 
         async function refreshAll() {
-            document.getElementById('stats').innerHTML = '<p class="col-span-3 text-center">Loading market data...</p>';
+            document.getElementById('status').textContent = 'Fetching fresh data...';
             await Promise.all([loadMarketData(), loadExchanges(), loadRecentTrades(), loadOrderBook()]);
+            document.getElementById('status').textContent = 'Updated ✓';
+            setTimeout(() => document.getElementById('status').textContent = '', 3000);
         }
 
         window.onload = () => {
